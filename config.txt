@@ -1,0 +1,31 @@
+#enable dumb search mode aka naive sdrg (only for testing, false by default)
+dumb=false
+
+#seed for random number generator
+seed=1
+
+#linear size of the square lattice
+lattice_size=7
+
+#quantum control parameter
+theta=1.5
+
+#number of decimation steps
+trials=0
+
+#enable the full snapshot history (false by default)
+history=true
+
+#enable JSON datafile generation (very slow; false by default)
+#json=true
+
+#debug flags (false by default)
+#debug_main=true
+#debug_dijkstra=true
+#debug_findLocalMinima=true
+#debug_decimate=true
+#debug_removeSelfLoops=true
+#debug_reassignEdges=true
+#debug_removeDuplicateEdges=true
+#debug_updateAllEdgeDistancesFromNode=true
+#debug_processNegativeEdge=true

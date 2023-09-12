@@ -1,0 +1,26 @@
+=============================================================
+ Copyright 2023 Geet Rakala
+ Distributed under the GNU General Public License, Version 3.
+ (See accompanying file LICENSE.txt or copy at
+ https://www.gnu.org/licenses/gpl-3.0.en.html)
+=============================================================
+
+An efficient numerical SDRG implementation using C++ Boost Graph Library.
+
+1. '/src' contains all the .cpp and .hpp files.
+
+4. Compilation is handled with the 'Makefile'.
+
+3. '/build' holds temporary build files. Can be cleared using 'make clean'.
+
+5. The 'config.txt' file provides neccesary parameters.
+
+6. A JSON file with the state of the graph can be printed into a 'graph_data.json' file.
+
+7. JSON files in /json can be visualised with the 'plotter.py' script.
+
+8. 'run.sh' isolates the executable and config files into a new unique folder.
+
+9. 'parallel.sh' parallelises 'run.sh' using GNU Parallel.
+
+10. Enjoy!
