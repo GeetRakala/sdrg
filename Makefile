@@ -7,7 +7,7 @@ BOOST_LIB = /opt/homebrew/Cellar/boost/1.82.0_1/lib
 
 # Compiler flags
 #CXXFLAGS = -std=c++17 -Iinclude -I$(BOOST_INCLUDE)
-CXXFLAGS = -std=c++17 -I$(BOOST_INCLUDE)
+CXXFLAGS = -o3 -std=c++17 -I$(BOOST_INCLUDE)
 
 # Linker flags
 LDFLAGS = -L$(BOOST_LIB)

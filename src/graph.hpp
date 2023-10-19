@@ -6,9 +6,6 @@
 //=============================================================
 #pragma once
 #include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/graph_traits.hpp>
-#include <boost/graph/dijkstra_shortest_paths.hpp>
-#include <boost/graph/named_function_params.hpp>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>

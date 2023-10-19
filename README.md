@@ -1,5 +1,5 @@
 # sdrg
- An efficient implementation of the Strong Disorder Renormalisation Group algorithm.
+An efficient implementation of the Strong Disorder Renormalisation Group algorithm.
 Requires C++ Boost Graph Library.
 
 1. '/src' contains all the .cpp and .hpp files.
@@ -12,7 +12,7 @@ Requires C++ Boost Graph Library.
 
 6. A JSON file with the state of the graph can be printed into a 'graph_data.json' file.
 
-7. JSON files in /json can be visualised with  'plotter.ipynb' 
+7. JSON files in /json can be visualised with  'plotter.ipynb'
 
 8. 'run.sh' isolates the executable and config files into a new unique folder.
 

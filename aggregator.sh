@@ -5,7 +5,7 @@
 #        and the output file is named "output.txt".
 
 # Create CSV file with headers
-echo "Seed,Lattice_Size,Theta,Iteration_Index,Node,Range" > output.csv
+echo "Seed,Lattice_Size,Theta,EE,MI,EN" > output.csv
 
 # Loop over each output directory to extract data
 for dir in run_seed_*; do
@@ -18,13 +18,13 @@ for dir in run_seed_*; do
 
     # Extract relevant data from the output file
     # Assumes that the output has the specific strings to grep for
-    iteration_index=$(grep "Iteration Index:" $file | awk '{print $3}')
-    node=$(grep "Node:" $file | awk '{print $2}')
-    range=$(grep "Range:" $file | awk '{print $2}')
+    entanglement_entropy=$(grep "Entanglement Entropy = " $file | awk '{print $4}')
+    mutual_information=$(grep "Mutual Information = " $file | awk '{print $4}')
+    entanglement_negativity=$(grep "Entanglement Negativity = " $file | awk '{print $4}')
 
     # Append to CSV
-    echo "$seed,$lattice_size,$theta,$range" >> output.csv
+    echo "$seed,$lattice_size,$theta,$entanglement_entropy,$mutual_information,$entanglement_negativity" >> output.csv
 done
 
 # Delete all output folders and files except output.csv
-find . -type d -name 'run_seed_*' -exec rm -rf {} +
+#find . -type d -name 'run_seed_*' -exec rm -rf {} +
