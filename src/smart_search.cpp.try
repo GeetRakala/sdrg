@@ -19,14 +19,65 @@ int chooseRandomActiveStartNode(const BGLGraph& graph, std::mt19937& gen) {
   return randomNodeIndex;
 }
 
-std::vector<int> constructPath(int node, const std::vector<int>& predecessors) {
+std::vector<int> constructPath(int target, const std::vector<int>& predecessors) {
   std::vector<int> path;
-  for (; node != -1; node = predecessors[node]) {
-    path.push_back(node);
+  for (int at = target; at != -1; at = predecessors[at]) {
+    path.push_back(at);
   }
   std::reverse(path.begin(), path.end());
   return path;
 }
+
+class CustomDijkstraVisitor {
+  public:
+    CustomDijkstraVisitor(int end, bool findToEndNode, const std::vector<int>& predecessors)
+      : endNode(end), findToEndNode(findToEndNode), predecessors(predecessors) {}
+
+    template <typename Vertex, typename Graph>
+      void examine_vertex(Vertex u, Graph& g) const {
+        if (g[u].status == NodeStatus::Active &&
+            (!findToEndNode || u == endNode) &&
+            u != predecessors[0]) {
+          throw u;  // Use exception to signal found node.
+        }
+      }
+
+    template <typename Vertex, typename Graph>
+      void discover_vertex(Vertex u, const Graph& g) const {
+        // Intentionally left empty for now
+      }
+
+    template <typename Edge, typename Graph>
+      void examine_edge(Edge e, const Graph& g) const {
+        // Intentionally left empty for now
+      }
+
+    template <typename Edge, typename Graph>
+      void edge_relaxed(Edge e, const Graph& g) const {
+        // Intentionally left empty for now
+      }
+
+    template <typename Edge, typename Graph>
+      void edge_not_relaxed(Edge e, const Graph& g) const {
+        // Intentionally left empty for now
+      }
+
+    template <typename Vertex, typename Graph>
+      void initialize_vertex(Vertex u, const Graph& g) const {
+        // Intentionally left empty for now
+      }
+
+    template <typename Vertex, typename Graph>
+      void finish_vertex(Vertex u, const Graph& g) const {
+        // Intentionally left empty for now
+      }
+
+  private:
+    int endNode;
+    bool findToEndNode;
+    const std::vector<int>& predecessors;
+};
+
 
 std::tuple<int, double, std::vector<int>> ActivatedDijkstra(
     const BGLGraph& bglGraph,
@@ -39,43 +90,32 @@ std::tuple<int, double, std::vector<int>> ActivatedDijkstra(
   std::vector<double> distances(num_vertices(graph), std::numeric_limits<double>::infinity());
   std::vector<int> predecessors(num_vertices(graph), -1);
 
-  distances[start] = 0;
 
-  using P = std::pair<double, int>;
-  std::priority_queue<P, std::vector<P>, std::greater<P>> min_heap;
-  min_heap.emplace(0, start);
+  int foundNode = -1;
 
-  while (!min_heap.empty()) {
-    double curr_dist = min_heap.top().first;
-    int curr_node = min_heap.top().second;
-    min_heap.pop();
-
-    // If current distance is greater than the shortest known distance for this node, skip.
-    if (curr_dist > distances[curr_node]) continue;
-
-    if (graph[curr_node].status == NodeStatus::Active &&
-        (!findToEndNode || curr_node == end) &&
-        curr_node != start) {
-      return {curr_node, curr_dist, constructPath(curr_node, predecessors)};
-    }
-
-    for (auto [ei, ei_end] = out_edges(curr_node, graph); ei != ei_end; ++ei) {
-      int neighbor = target(*ei, graph);
-      double weight = get(boost::edge_weight_t(), graph, *ei);
-
-      if (findToEndNode && graph[neighbor].status == NodeStatus::Active && neighbor != end) {
-        continue;
-      }
-
-      if (curr_dist + weight < distances[neighbor]) {
-        distances[neighbor] = curr_dist + weight;
-        predecessors[neighbor] = curr_node;
-        min_heap.emplace(distances[neighbor], neighbor);
-      }
-    }
+  try {
+    CustomDijkstraVisitor customVisitor(end, findToEndNode, predecessors);
+    dijkstra_shortest_paths(graph, start,
+        boost::visitor(customVisitor)
+        .distance_map(boost::make_iterator_property_map(distances.begin(), get(boost::vertex_index, graph)))
+        .predecessor_map(boost::make_iterator_property_map(predecessors.begin(), get(boost::vertex_index, graph)))
+        );
+  } catch (unsigned long node) {
+    foundNode = static_cast<int>(node);
   }
+
+  if (foundNode != -1) {
+    std::vector<int> path;
+    for (int at = foundNode; at != -1; at = predecessors[at]) {
+      path.push_back(at);
+    }
+    std::reverse(path.begin(), path.end());
+    return {foundNode, distances[foundNode], path};
+  }
+
   return {-1, std::numeric_limits<double>::infinity(), {}};
 }
+
 
 
 /**

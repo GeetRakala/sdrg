@@ -57,7 +57,7 @@ void do_dumb_decimate(BGLGraph& bglGraph, const std::tuple<int, double, std::vec
       if (debug) std::cout << "Updating cluster index and status for nodes in the cluster: " << currentClusterIndex << "\n";
 
       for (const auto& nodeInCluster : nodesInCurrentCluster) {
-        bglGraph.updateNodeClusterIndex(nodeInCluster, -1);
+        //bglGraph.updateNodeClusterIndex(nodeInCluster, -1);
         bglGraph.updateNodeStatus(nodeInCluster, NodeStatus::Inactive);
       }
     }

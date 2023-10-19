@@ -32,10 +32,11 @@ void BGLGraph::removeEdge(int from, int to) {
   remove_edge(to, from, g);
 }
 
-void BGLGraph::addNode(int index, double range, NodeStatus status, int clusterIndex) {
-  g[index] = Node(range, status, index, clusterIndex);
+void BGLGraph::addNode(int index, double range, NodeStatus status, int clusterIndex, int subsystem) {
+  g[index] = Node(range, status, index, clusterIndex, subsystem);
   nodes_by_status[status].push_back(index);
   nodes_by_clusterIndex[clusterIndex].push_back(index);
+  nodes_in_subsystem[subsystem].push_back(index);
 }
 
 void BGLGraph::updateNodeStatus(int node_index, NodeStatus new_status) {
@@ -63,6 +64,15 @@ void BGLGraph::updateNodeClusterIndex(int node_index, int new_clusterIndex) {
   old_list.erase(std::remove(old_list.begin(), old_list.end(),
         node_index), old_list.end());
   nodes_by_clusterIndex[new_clusterIndex].push_back(node_index);
+}
+
+void BGLGraph::updateNodeSubsystem(int node_index, int new_subsystem) {
+  int old_subsystem = g[node_index].subsystem;
+  g[node_index].subsystem = new_subsystem;
+  auto &old_list = nodes_in_subsystem[old_subsystem];
+  old_list.erase(std::remove(old_list.begin(), old_list.end(),
+        node_index), old_list.end());
+  nodes_in_subsystem[new_subsystem].push_back(node_index);
 }
 
 void BGLGraph::updateEdgeDistance(int from, int to, double new_distance) {

@@ -7,9 +7,12 @@
 #pragma once
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
+#include <boost/graph/dijkstra_shortest_paths.hpp>
+#include <boost/graph/named_function_params.hpp>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <string>
 #include <random>
 #include <queue>
 #include <iostream>
@@ -20,7 +23,10 @@ struct ConfigParams {
   int seed = 0;
   int latticeSize = 0;
   double theta = 1.0;
+  double temp = 0.0;
   int trials = 0;
+  double pee = 0.0;
+  int subsystems = 2;
   bool history = false;
   bool json = false;
   bool dumb = true;
@@ -35,6 +41,20 @@ struct ConfigParams {
   bool debugProcessNegativeEdge = false;
 };
 
+
+struct IterationSnapshot {
+  int decimationIndex;
+  std::tuple<int, double, std::vector<int>, bool> localMinimaResult;
+  IterationSnapshot(
+      int decimationIndex,
+      std::tuple<int, double, std::vector<int>, bool> localMinimaResult
+      ) :
+    decimationIndex(decimationIndex),
+    localMinimaResult(localMinimaResult)
+  {}
+};
+
+
 enum class NodeStatus { Dead, Active, Inactive };
 
 struct Node {
@@ -42,10 +62,11 @@ struct Node {
   NodeStatus status;      // Status of the node.
   int index;              // Index of the node.
   int clusterIndex;       // Index of the cluster the node belongs to.
+  int subsystem;          // Which subsystem does the node belong to.
 
-  Node() : range(0), status(NodeStatus::Active), index(-1), clusterIndex(-1) {}
-  Node(double range, NodeStatus status, int index, int clusterIndex)
-    : range(range), status(status), index(index), clusterIndex(clusterIndex) {}
+  Node() : range(0), status(NodeStatus::Active), index(-1), clusterIndex(-1), subsystem(0) {}
+  Node(double range, NodeStatus status, int index, int clusterIndex, int subsystem)
+    : range(range), status(status), index(index), clusterIndex(clusterIndex), subsystem(subsystem) {}
 };
 
 typedef boost::property<boost::edge_weight_t, double> EdgeWeightProperty;
@@ -65,6 +86,7 @@ class BGLGraph {
   Graph g;
   std::unordered_map<NodeStatus, std::vector<int>> nodes_by_status;
   std::unordered_map<int, std::vector<int>> nodes_by_clusterIndex;
+  std::unordered_map<bool, std::vector<int>> nodes_in_subsystem;
 
   public:
   // Constructor: Initializes Graph with a given size.
@@ -76,6 +98,10 @@ class BGLGraph {
   // Accessor method to get nodes by cluster index
   const std::unordered_map<int, std::vector<int>>& getNodesByClusterIndex() const {
     return nodes_by_clusterIndex;
+  }
+  // Accessor method to get nodes by subsystem A
+  const std::unordered_map<bool, std::vector<int>>& getNodesInSubsystem() const {
+    return nodes_in_subsystem;
   }
   // Reference to the underlying graph
   // Non-const version
@@ -92,10 +118,11 @@ class BGLGraph {
   void removeInEdges(int nodeIndex);
   void addEdge(int from, int to, double distance);
   void removeEdge(int from, int to);
-  void addNode(int index, double range, NodeStatus status, int clusterIndex);
+  void addNode(int index, double range, NodeStatus status, int clusterIndex, int subsystem);
   void updateNodeStatus(int node_index, NodeStatus new_status);
   void updateNodeRange(int node_index, double new_range);
   void updateNodeClusterIndex(int node_index, int new_clusterIndex);
+  void updateNodeSubsystem(int node_index, int new_subsystem);
   void updateEdgeDistance(int from, int to, double new_distance);
 
   // functions defined in smart_utilities.cpp
@@ -127,7 +154,6 @@ BGLGraph createSquareLatticeGraph(int L, double theta, std::mt19937& gen);
 
 // functions defined in smart_search.cpp
 int chooseRandomActiveStartNode(const BGLGraph& graph, std::mt19937& gen);
-//std::tuple<int, double, std::vector<int>> ActivatedDijkstra(const BGLGraph& bglGraph, int start, bool debugDijkstra);
 std::tuple<int, double, std::vector<int>> ActivatedDijkstra( const BGLGraph& bglGraph, int start, int end, bool findToEndNode, bool debugDijkstra);
 std::tuple<int, double, std::vector<int>, bool> findLocalMinimum(const BGLGraph& bglGraph, std::mt19937& gen, bool debug = false, bool debugDijkstra = false);
 
@@ -144,4 +170,10 @@ void do_dumb_decimate(BGLGraph& bglGraph, const std::tuple<int, double, std::vec
 // functions defined in graph_debug.cpp
 void findAndPrintDuplicateEdges(const BGLGraph& graph);
 
+//functions defined in sample_utilities.cpp
+std::vector<double> generateSubsystemProbabilities(double p, int num_subsystems);
+void initializeSubsystem(BGLGraph& graph, double p, int num_subsystems, std::mt19937& gen);
+
+
 //functions defined in graph_sample.cpp
+std::unordered_map<std::string, int> calculateEntanglementEntropy( const BGLGraph& bglGraph, int num_subsystems);

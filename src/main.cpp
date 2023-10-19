@@ -4,148 +4,138 @@
 // (See accompanying file LICENSE.txt or copy at
 // https://www.gnu.org/licenses/gpl-3.0.en.html)
 //=============================================================
-
 #include "graph.hpp"
 
-struct IterationSnapshot {
-  int decimationIndex;
-  std::tuple<int, double, std::vector<int>, bool> localMinimaResult;
-  //BGLGraph graphState;
-
-  // Add constructor
-  //IterationSnapshot(int decimationIndex, std::tuple<int, double, std::vector<int>, bool> localMinimaResult, BGLGraph graphState)
-   // : decimationIndex(decimationIndex),
-    //localMinimaResult(localMinimaResult),
-    //graphState(graphState) {}
-//};
-  IterationSnapshot(
-      int decimationIndex,
-      std::tuple<int, double, std::vector<int>, bool> localMinimaResult
-      ) :
-    decimationIndex(decimationIndex),
-    localMinimaResult(localMinimaResult)
-  {}
-};
-
 int main() {
-
-  // Parse the configuration file to retrieve constants
   ConfigParams params;
-  if (parseConfig("config.txt", params)) {
+
+  if (!parseConfig("config.txt", params)) {
+    return 1;  // Exit if parsing failed
   }
 
-  // Initialize the random number generator with the given seed
   std::mt19937 gen(params.seed);
 
-  // Loop of N trials
-  for (int i = 0; i < 1; ++i) {
-    // Create a square lattice graph with specified size
-    BGLGraph bglGraph = createSquareLatticeGraph(params.latticeSize,params.theta,gen);
+  BGLGraph bglGraph = createSquareLatticeGraph(params.latticeSize, params.theta, gen);
+  initializeSubsystem(bglGraph, params.pee, params.subsystems, gen);
 
-    // Generate a JSON file containing graph data
-    if (params.json) generateDataFile(bglGraph, "graph_data");
+  if (params.json) generateDataFile(bglGraph, "graph_data");
 
-    // Initialize snapshots vector
-    std::vector<IterationSnapshot> snapshots;
+  std::vector<IterationSnapshot> snapshots;
+  double largestLocalMinimaValue = -std::numeric_limits<double>::infinity();
+  IterationSnapshot snapshot(0, std::make_tuple(0, largestLocalMinimaValue, std::vector<int>(), false));
+  double maxMinima = -std::log(params.temp);
 
-    // Initialize the localMinimaValue to a really low value
-    double largestLocalMinimaValue = -std::numeric_limits<double>::infinity();
+  for (int j = 0; j < params.latticeSize * params.latticeSize; ++j) {
+    if (params.debugMain) std::cout << "Iteration : " << j << '\n';
 
-    //IterationSnapshot snapshot(0, std::make_tuple(0, largestLocalMinimaValue, std::vector<int>(), false), bglGraph);
-    IterationSnapshot snapshot(0, std::make_tuple(0, largestLocalMinimaValue, std::vector<int>(), false));
+    std::tuple<int, double, std::vector<int>, bool> result;
 
-    for (int j = 0; j < params.latticeSize*params.latticeSize; ++j) {
-    //for (int j = 0; j < 91; ++j) {
-      if (params.debugMain) std::cout << "Iteration : " << j << '\n';
-
-      std::tuple<int, double, std::vector<int>, bool> result;
-      // Find local minima
-      if (params.dumb) result = findMinimumEdgeOrNodeRange(bglGraph);
-      if (!params.dumb) result = findLocalMinimum(bglGraph, gen, params.debugFlm, params.debugDijkstra);
-
-      if (!params.history) {
-        // Get the localMinimaValue from the result
-        double currentLocalMinimaValue = std::get<1>(result);
-        // If the new snapshot has a larger local minima, replace the current snapshot
-        if (currentLocalMinimaValue > largestLocalMinimaValue) {
-          largestLocalMinimaValue = currentLocalMinimaValue;
-          // Assign a new snapshot
-          //snapshot = IterationSnapshot(j, result, bglGraph);
-          snapshot = IterationSnapshot(j, result);
-        }
-      }
-
-      if (params.history) {
-        //snapshot = IterationSnapshot(j, result, bglGraph);
-        snapshot = IterationSnapshot(j, result);
-        snapshots.push_back(snapshot);
-      }
-
-      if (params.debugMain) {
-        int node = std::get<0>(result);
-        double value = std::get<1>(result);
-        const auto& path = std::get<2>(result);
-        bool isRange = std::get<3>(result);
-        std::cout << "Node: " << node << '\n';
-        std::cout << (isRange ? "Range: " : "Distance: ") << value << '\n';
-        if (!path.empty()) {
-          std::cout << "Path: ";
-          for (const auto& p : path) {
-            std::cout << p << " -> ";
-          }
-          std::cout << "End\n";
-        }
-        std::cout << "---------------------------------------\n";
-      }
-
-      if (!params.dumb) do_decimate(bglGraph, result, params.debugDecimate, params.debugRemoveSelfLoops, params.debugReassignEdges, params.debugRemoveDuplicateEdges, params.debugUpdateAllEdgeDistancesFromNode, params.debugProcessNegativeEdge);
-      if (params.dumb) do_dumb_decimate(bglGraph, result);
-
-      if (params.debugMain) {
-        std::cout << "---------------------------------------\n";
-      }
-
-      if (params.json) generateDataFile(bglGraph, "graph_data");
-    } //end of decimate iteration
-
-    if (params.history) {
-      // Sorting snapshots based on the localMinimaValue in ascending order
-      std::sort(snapshots.begin(), snapshots.end(), [](const IterationSnapshot& a, const IterationSnapshot& b) {
-          return std::get<1>(a.localMinimaResult) < std::get<1>(b.localMinimaResult);
-          });
+    if (params.dumb) {
+      result = findMinimumEdgeOrNodeRange(bglGraph);
+    } else {
+      result = findLocalMinimum(bglGraph, gen, params.debugFlm, params.debugDijkstra);
     }
 
-    // Declare a tuple to hold localMinimaDetails
-    std::tuple<int, double, std::vector<int>, bool> localMinimaDetails;
+    double currentLocalMinimaValue = std::get<1>(result);
 
-    // Extract and print details of largest local minimum
-    if (params.history) localMinimaDetails = snapshots.back().localMinimaResult;
-    if (!params.history) localMinimaDetails = snapshot.localMinimaResult;
+    if (currentLocalMinimaValue > maxMinima) {
+      if (params.dumb) break;
+      continue;
+    }
+
+    if (!params.history && currentLocalMinimaValue > largestLocalMinimaValue) {
+      largestLocalMinimaValue = currentLocalMinimaValue;
+      snapshot = IterationSnapshot(j, result);
+    }
+
+    if (params.history) {
+      snapshot = IterationSnapshot(j, result);
+      snapshots.push_back(snapshot);
+    }
+
+    if (params.debugMain) {
+      const auto& [node, value, path, isRange] = result;
+      std::cout << "Node: " << node << '\n';
+      std::cout << (isRange ? "Range: " : "Distance: ") << value << '\n';
+      if (!path.empty()) {
+        std::cout << "Path: ";
+        for (const auto& p : path) {
+          std::cout << p << " -> ";
+        }
+        std::cout << "End\n";
+      }
+      std::cout << "---------------------------------------\n";
+    }
+
+    if (params.dumb) {
+      do_dumb_decimate(bglGraph, result);
+    } else {
+      do_decimate(bglGraph, result, params.debugDecimate, params.debugRemoveSelfLoops, params.debugReassignEdges, params.debugRemoveDuplicateEdges, params.debugUpdateAllEdgeDistancesFromNode, params.debugProcessNegativeEdge);
+    }
+
+    if (params.debugMain) std::cout << "---------------------------------------\n";
+    if (params.json) generateDataFile(bglGraph, "graph_data");
+  }
+
+  if (params.history) {
+    std::sort(snapshots.begin(), snapshots.end(), [](const IterationSnapshot& a, const IterationSnapshot& b) {
+        return std::get<1>(a.localMinimaResult) < std::get<1>(b.localMinimaResult);
+        });
+
+    // Extract and display details from snapshots
+    const auto& localMinimaDetails = snapshots.back().localMinimaResult;
     int node = std::get<0>(localMinimaDetails);
     double value = std::get<1>(localMinimaDetails);
     bool isRange = std::get<3>(localMinimaDetails);
+    std::cout << "Max Minima: " << maxMinima << '\n';
     std::cout << "Details of the largest local minimum:\n";
     std::cout << "Iteration Index: " << snapshot.decimationIndex << '\n';
     std::cout << "Node: " << node << '\n';
     std::cout << (isRange ? "Range: " : "Distance: ") << value << '\n';
     std::cout << "---------------------------------------\n";
 
-    if (params.history) {
-      // Print all iteration indices and local minima in ascending order
-      std::cout << "\nFull list of iteration indices and local minima:\n";
-      for (const auto& snapshot : snapshots) {
-        auto& localMinimaDetails = snapshot.localMinimaResult;
-        int iterationIndex = snapshot.decimationIndex;
-        int nodeIndex = std::get<0>(localMinimaDetails);
-        double localMinimaValue = std::get<1>(localMinimaDetails);
+    for (const auto& snap : snapshots) {
+      const auto& details = snap.localMinimaResult;
+      std::cout << "Iteration Index: " << snap.decimationIndex
+        << ", Node Index: " << std::get<0>(details)
+        << ", Local Minimum: " << std::get<1>(details) << '\n';
+    }
+  }
 
-        std::cout << "Iteration Index: " << iterationIndex
-          << ", Node Index: " << nodeIndex
-          << ", Local Minimum: " << localMinimaValue << '\n';
-      }
-      std::cout << "---------------------------------------\n";
+  // Calculate and display entanglement entropy details
+  auto entanglementCounts = calculateEntanglementEntropy(bglGraph, params.subsystems);
+
+  for (const auto& [config, count] : entanglementCounts) {
+    std::cout << "Configuration " << config << " has a count of: " << count << "\n";
+  }
+
+  // Calculate vonNeuman entanglement entropy
+  if (params.subsystems == 1) {
+    int entanglementEntropy = 0;
+    try {
+      entanglementEntropy = entanglementCounts.at("1,1");
+    } catch (const std::out_of_range&) {
+      std::cout << "Warning: Required configurations for Entanglement Entropy not found.\n";
+    }
+    std::cout << "Entanglement Entropy = " << entanglementEntropy << "\n";
+  }
+
+  // Calculate Mutual Information and Entanglement Negativity when params.subsystems is 2
+  if (params.subsystems == 2) {
+    int mutualInformation = 0;
+    int entanglementNegativity = 0;
+
+    try {
+      mutualInformation = 2 * entanglementCounts.at("1,0,1") + entanglementCounts.at("1,1,1");
+      entanglementNegativity = entanglementCounts.at("1,0,1");
+    } catch (const std::out_of_range&) {
+      std::cout << "Warning: Required configurations for Mutual Information or Entanglement Negativity not found.\n";
     }
 
-  } //N trials for loop
+    std::cout << "Mutual Information = " << mutualInformation << "\n";
+    std::cout << "Entanglement Negativity = " << entanglementNegativity << "\n";
+  }
+
+
   return 0;
 }

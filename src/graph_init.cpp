@@ -40,7 +40,7 @@ void initializeNodeStatus(BGLGraph& graph, std::mt19937& gen) {
  * @param gen Reference to a random number generator of type std::mt19937.
  */
 void initializeRangeAndDistance(BGLGraph& graph, double theta, std::mt19937& gen) {
-  double h_max = std::exp(theta);  // Calculate h_max using theta
+  double h_max = std::exp(1.6784+theta);  // Calculate h_max using theta
   std::uniform_real_distribution<> dis_h(0.0, h_max); // Uniform distribution between 0 and h_max
   std::uniform_real_distribution<> dis_J(0.0, 1.0);  // Uniform distribution between 0 and 1
 
@@ -73,7 +73,7 @@ BGLGraph createSquareLatticeGraph(int L, double theta, std::mt19937& gen) {
   for (int i = 0; i < L; ++i) {
     for (int j = 0; j < L; ++j) {
       int index = i * L + j;
-      graph.addNode(index, 0.0, NodeStatus::Active, index);
+      graph.addNode(index, 0.0, NodeStatus::Active, index, 0);
 
       if (j + 1 < L) {
         int right = i * L + j + 1;

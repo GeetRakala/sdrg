@@ -37,6 +37,9 @@ void generateDataFile(const BGLGraph& bglGraph, const std::string& filenamePrefi
     // Output the cluster index of the node.
     file << ", \"clusterIndex\": " << graph[i].clusterIndex;
 
+    // Output the subsystem bool of the node.
+    file << ", \"subsystem\": " << graph[i].subsystem;
+
     // Output the status of the node using a switch case for clarity.
     file << ", \"status\": ";
     switch (graph[i].status) {
@@ -138,7 +141,10 @@ bool parseConfig(const std::string& fileName, ConfigParams& params) {
           if (key == "seed") params.seed = std::stoi(value);
           else if (key == "lattice_size") params.latticeSize = std::stoi(value);
           else if (key == "theta") params.theta = std::stod(value);
+          else if (key == "temp") params.temp = std::stod(value);
           else if (key == "trials") params.trials = std::stoi(value);
+          else if (key == "pee") params.pee = std::stod(value);
+          else if (key == "subsystems") params.subsystems = std::stoi(value);
           else if (key == "history") params.history = (value == "true");
           else if (key == "json") params.json = (value == "true");
           else if (key == "dumb") params.dumb = (value == "true");
