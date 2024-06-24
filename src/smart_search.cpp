@@ -28,6 +28,11 @@ std::vector<int> constructPath(int node, const std::vector<int>& predecessors) {
   return path;
 }
 
+// The activated Dijkstra algorithm
+// using Fibonacci heap data structure
+// TODO: find all distances from all active sites simultaneously.
+// TODO: Delete inactive sites that have already been crossed during the search.
+
 std::tuple<int, double, std::vector<int>> ActivatedDijkstra(
     const BGLGraph& bglGraph,
     int start,
@@ -38,6 +43,11 @@ std::tuple<int, double, std::vector<int>> ActivatedDijkstra(
   const Graph& graph = bglGraph.getGraph();
   std::vector<double> distances(num_vertices(graph), std::numeric_limits<double>::infinity());
   std::vector<int> predecessors(num_vertices(graph), -1);
+
+  if (start < 0 || start >= num_vertices(graph)) {
+    std::cout << "Start : " << start << "\n";
+    throw std::out_of_range("Start index out of range");
+  }
 
   distances[start] = 0;
 
@@ -50,7 +60,12 @@ std::tuple<int, double, std::vector<int>> ActivatedDijkstra(
     int curr_node = min_heap.top().second;
     min_heap.pop();
 
+    // Maybe add a condition here to check if an inactive node has already been visited.
+    // If yes, skip the already visited node. Need to check an example of where this works.
     // If current distance is greater than the shortest known distance for this node, skip.
+    // It is also possible that I can avoid a lot of complexity of reassignemt if I naturally
+    // skip nodes with distances outside the range/2 (or some such thing) of the origin node.
+
     if (curr_dist > distances[curr_node]) continue;
 
     if (graph[curr_node].status == NodeStatus::Active &&
@@ -78,13 +93,8 @@ std::tuple<int, double, std::vector<int>> ActivatedDijkstra(
 }
 
 
-/**
- * @brief Finds the local minimum based on distance and range between active nodes.
- *
- * @param bglGraph The BGL graph containing nodes and edges.
- * @param gen Random number generator.
- * @return A tuple containing the node index, range or distance, path if applicable, and a boolean flag indicating if the value is a range.
- */
+// Finds the local minimum based on distance and range between active nodes.
+// TODO: Possible optimisation possible here? Have to see.
 std::tuple<int, double, std::vector<int>, bool> findLocalMinimum(const BGLGraph& bglGraph, std::mt19937& gen, bool debug, bool debugDijkstra) {
 
   const Graph& graph = bglGraph.getGraph(); // Extracting Graph from BGLGraph

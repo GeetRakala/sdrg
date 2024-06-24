@@ -9,27 +9,43 @@
 int main() {
   ConfigParams params;
 
+  // read the parameter values from the config.txt file
   if (!parseConfig("config.txt", params)) {
     return 1;  // Exit if parsing failed
   }
 
+  // intialise random number sequence
   std::mt19937 gen(params.seed);
 
-  BGLGraph bglGraph = createSquareLatticeGraph(params.latticeSize, params.theta, gen);
-  initializeSubsystem(bglGraph, params.pee, params.subsystems, gen);
+  // create a set of nodes that make the lattice and add edges between the nodes.
+  BGLGraph bglGraph = createLatticeGraph(params.latticeSize, params.delta, params.graphType, params.distType, gen);
 
+  // assign subsystem indices to the nodes
+  if (params.partitionType == "bipartite") {
+    initializeBipartiteChain(bglGraph);
+    params.subsystems = 1;
+  }
+  else if (params.partitionType == "random") {
+    initializeSubsystem(bglGraph, params.pee, params.subsystems, gen);
+  }
+
+  // create a JSON image of the graph
   if (params.json) generateDataFile(bglGraph, "graph_data");
 
+  // initialize the graph snapshot array
+  // This will be used as an array only if history is on. Otherwise it will
+  // be used to store only the snapshot with the largest minima value
   std::vector<IterationSnapshot> snapshots;
   double largestLocalMinimaValue = -std::numeric_limits<double>::infinity();
   IterationSnapshot snapshot(0, std::make_tuple(0, largestLocalMinimaValue, std::vector<int>(), false));
   double maxMinima = -std::log(params.temp);
 
-  for (int j = 0; j < params.latticeSize * params.latticeSize; ++j) {
+  for (int j = 0; j < num_vertices(bglGraph.getGraph()); ++j) {
     if (params.debugMain) std::cout << "Iteration : " << j << '\n';
 
     std::tuple<int, double, std::vector<int>, bool> result;
 
+    // params.dumb is the switch which chooses between dumb sdrg decimations vs Kovcs-Igloi
     if (params.dumb) {
       result = findMinimumEdgeOrNodeRange(bglGraph);
     } else {
@@ -102,40 +118,68 @@ int main() {
     }
   }
 
-  // Calculate and display entanglement entropy details
-  auto entanglementCounts = calculateEntanglementEntropy(bglGraph, params.subsystems);
+  // entropy calculations
+  std::string directoryName = "csvfiles";
 
-  for (const auto& [config, count] : entanglementCounts) {
-    std::cout << "Configuration " << config << " has a count of: " << count << "\n";
+  // Check if the directory exists and create it if it doesn't
+  if (!std::filesystem::exists(directoryName)) {
+    std::filesystem::create_directory(directoryName);
   }
 
-  // Calculate vonNeuman entanglement entropy
+  std::string baseFilename = generateFilename();
+
+  std::ofstream outFileClusters(directoryName + "/" + baseFilename + "_cluster_statistics.csv");
+  outFileClusters << "Cluster Size, Cluster Count\n";
+
+  std::ofstream outFileResults(directoryName + "/" + baseFilename + "_results.csv");
+
   if (params.subsystems == 1) {
-    int entanglementEntropy = 0;
-    try {
-      entanglementEntropy = entanglementCounts.at("1,1");
-    } catch (const std::out_of_range&) {
-      std::cout << "Warning: Required configurations for Entanglement Entropy not found.\n";
-    }
-    std::cout << "Entanglement Entropy = " << entanglementEntropy << "\n";
+    outFileResults << "TotalClusters, EntEntropy\n";
+  }
+  else if (params.subsystems == 2) {
+    outFileResults << "TotalClusters, MutualInfo, EntNegativity\n";
   }
 
-  // Calculate Mutual Information and Entanglement Negativity when params.subsystems is 2
+  auto [totalClusters, clusterSizeCount] = calculateClusterStatistics(bglGraph, params.threads);
+  if (params.verbose) std::cout << "Total number of clusters: " << totalClusters << "\n";
+  for (const auto& [size, count] : clusterSizeCount) {
+    if (params.verbose) std::cout << "Number of clusters of size " << size << " : " << count << "\n";
+    outFileClusters << size << ", " << count << "\n";
+  }
+
+  auto entanglementCounts = calculateEntanglementCounts(bglGraph, params.subsystems, params.threads);
+
+  if (params.verbose) {
+    for (const auto& [config, count] : entanglementCounts) {
+      std::cout << "Configuration " << config << " has a count of: " << count << "\n";
+    }
+  }
+
+  if (params.subsystems == 1) {
+    int entanglementEntropy = calculateVonNeumannEntropy(entanglementCounts, params.subsystems);
+    if (params.verbose) std::cout << "Entanglement Entropy = " << entanglementEntropy << "\n";
+    outFileResults << totalClusters << "," << entanglementEntropy << "\n";
+  }
+
   if (params.subsystems == 2) {
-    int mutualInformation = 0;
-    int entanglementNegativity = 0;
-
-    try {
-      mutualInformation = 2 * entanglementCounts.at("1,0,1") + entanglementCounts.at("1,1,1");
-      entanglementNegativity = entanglementCounts.at("1,0,1");
-    } catch (const std::out_of_range&) {
-      std::cout << "Warning: Required configurations for Mutual Information or Entanglement Negativity not found.\n";
+    auto [mutualInformation, entanglementNegativity] = calculateMutualInfo(entanglementCounts, params.subsystems);
+    if (params.verbose) {
+      std::cout << "Mutual Information = " << mutualInformation << "\n";
+      std::cout << "Entanglement Negativity = " << entanglementNegativity << "\n";
     }
-
-    std::cout << "Mutual Information = " << mutualInformation << "\n";
-    std::cout << "Entanglement Negativity = " << entanglementNegativity << "\n";
+    outFileResults << totalClusters << "," << mutualInformation << "," << entanglementNegativity << "\n";
   }
 
+  outFileResults.close();
+  outFileClusters.close();
+
+  logMetadata(params, baseFilename, directoryName);
+
+  std::cout << "persistence trials: " << params.persTrials << std::endl;
+  double averageSamples = computeAverageSamples(bglGraph, params.persTrials, gen);
+
+  std::cout << "Average number of nodes to be sampled to cover all clusters at least once: "
+    << averageSamples << std::endl;
 
   return 0;
 }

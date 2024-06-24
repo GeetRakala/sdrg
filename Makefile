@@ -2,8 +2,8 @@
 CXX = g++
 
 # Boost include and library paths
-BOOST_INCLUDE = /opt/homebrew/Cellar/boost/1.82.0_1/include
-BOOST_LIB = /opt/homebrew/Cellar/boost/1.82.0_1/lib
+BOOST_INCLUDE = $(wildcard /opt/homebrew/Cellar/boost/*/include)
+BOOST_LIB = $(wildcard /opt/homebrew/Cellar/boost/*/lib)
 
 # Compiler flags
 #CXXFLAGS = -std=c++17 -Iinclude -I$(BOOST_INCLUDE)
@@ -58,17 +58,19 @@ clean:
 	rm -f $(OBJECTS) $(EXEC)
 	rm -f json/*
 	rm -f pdf/*
+	rm -f csvfiles/*
 	@echo
 	@echo "Removed build files and executable."
-	@echo "Cleaned the json/ and pdf/ directories."
+	@echo "Cleaned the json/, pdf/ and csvfiles/ directories."
 	@echo
 
 # Clean only the output files
 clean-output:
 	rm -f json/*
 	rm -f pdf/*
+	rm -f csvfiles/*
 	@echo
-	@echo "Cleaned the json/ and pdf/ directories."
+	@echo "Cleaned the json/, pdf/ and csvfiles/ directories."
 	@echo
 
 .PHONY: all debug clean

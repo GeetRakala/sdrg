@@ -2,13 +2,19 @@
 dumb=false
 
 #seed for random number generator
-seed=160
+seed=1
+
+#lattice type (chain,square)
+graph_type=square
+
+#distribution type (box,fixed)
+dist_type=box
 
 #linear size of the square lattice
 lattice_size=10
 
 #quantum control parameter
-theta=0
+delta=-1.0
 
 #temperature
 temp=0
@@ -16,19 +22,29 @@ temp=0
 #number of decimation steps
 trials=0
 
+#number of trials to calculte persistence of entanglement
+persistence_trials=1000
+
 #probability of subsystem
 pee=0.5
 
-#number of subsystems (2 by default)
-subsystems=1
+#type of parittion of the system (bipartite,random)
+partition_type=random
+
+#number of subsystems (2 by default) (only needed for random.)
+subsystems=2
 
 #enable the full snapshot history (false by default)
-history=true
+#history=true
 
 #enable JSON datafile generation (very slow; false by default)
-json=true
+#json=true
+
+#max number of threads used in parallel cluster counting algo (default = 10)
+threads=10
 
 #debug flags (false by default)
+verbose=true
 #debug_main=true
 #debug_dijkstra=true
 #debug_findLocalMinima=true

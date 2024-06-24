@@ -39,15 +39,45 @@ void initializeNodeStatus(BGLGraph& graph, std::mt19937& gen) {
  * @param graph Reference to the BGLGraph object whose nodes' ranges and edges' distances are to be initialized.
  * @param gen Reference to a random number generator of type std::mt19937.
  */
-void initializeRangeAndDistance(BGLGraph& graph, double theta, std::mt19937& gen) {
-  double h_max = std::exp(1.6784+theta);  // Calculate h_max using theta
-  std::uniform_real_distribution<> dis_h(0.0, h_max); // Uniform distribution between 0 and h_max
+void initializeRangeAndDistance(BGLGraph& graph, double delta, std::string& latticeType, std::string& distType, std::mt19937& gen) {
+
+  double h_max;
+  std::uniform_real_distribution<> dis_h;
+
+  // Calculate h_max only if distType is "box"
+  if (distType == "box") {
+    if (latticeType == "square") {
+      h_max = std::exp(1.6784 + delta);
+    } else if (latticeType == "chain") {
+      h_max = std::exp(delta);
+    }
+    dis_h = std::uniform_real_distribution<>(0.0, h_max);
+  }
+  else if (distType == "fixed") {
+    if (latticeType == "square") {
+      h_max = std::exp(-0.17034 + delta);
+    } else if (latticeType == "chain") {
+      h_max = std::exp(delta);
+    }
+  }
+  //std::cout << "h_max = " << h_max << "\n";
+  // Define distribution for J
   std::uniform_real_distribution<> dis_J(0.0, 1.0);  // Uniform distribution between 0 and 1
 
   // Update the range for each node
   for (int i = 0; i < num_vertices(graph.getGraph()); ++i) {
-    double h = dis_h(gen);  // Draw h and normalize it by dividing by h_max
-    double range = -std::log(h);  // Natural logarithm transformation
+    double h;
+    if (distType == "box") {
+      h = dis_h(gen);  // Draw h for box distribution
+    } else if (distType == "fixed") {
+      h = h_max; // Fixed h
+    }
+    double range;
+    if (distType == "box") {
+      range = -std::log(h);
+    } else if (distType == "fixed") {
+      range = -std::log(h);
+    }
     graph.updateNodeRange(i, range);
   }
 
@@ -59,33 +89,82 @@ void initializeRangeAndDistance(BGLGraph& graph, double theta, std::mt19937& gen
     graph.updateEdgeDistance(source(*ei, graph.getGraph()), target(*ei, graph.getGraph()), distance);
   }
 }
-/**
- * @brief Creates a square lattice graph of size L x L.
- * ...
- * @param L The length of the sides of the square lattice.
- * @param gen Reference to a random number generator of type std::mt19937.
- * @return The created BGLGraph object representing the square lattice.
- */
-BGLGraph createSquareLatticeGraph(int L, double theta, std::mt19937& gen) {
-  int num_nodes = L * L;
-  BGLGraph graph(num_nodes);
 
-  for (int i = 0; i < L; ++i) {
-    for (int j = 0; j < L; ++j) {
-      int index = i * L + j;
-      graph.addNode(index, 0.0, NodeStatus::Active, index, 0);
+BGLGraph createLatticeGraph(int L, double delta, std::string& latticeType, std::string& distType, std::mt19937& gen) {
 
-      if (j + 1 < L) {
-        int right = i * L + j + 1;
-        graph.addEdge(index, right, 0.0);
-      }
-      if (i + 1 < L) {
-        int down = (i + 1) * L + j;
-        graph.addEdge(index, down, 0.0);
+  if (latticeType == "square") {
+    int num_nodes = L * L;
+    BGLGraph graph(num_nodes);
+
+    for (int i = 0; i < L; ++i) {
+      for (int j = 0; j < L; ++j) {
+        int index = i * L + j;
+        graph.addNode(index, 0.0, NodeStatus::Active, index, 0);
+
+        if (j + 1 < L) {
+          int right = i * L + j + 1;
+          graph.addEdge(index, right, 0.0);
+        }
+        if (i + 1 < L) {
+          int down = (i + 1) * L + j;
+          graph.addEdge(index, down, 0.0);
+        }
       }
     }
+    initializeRangeAndDistance(graph, delta, latticeType, distType, gen);
+    return graph;
   }
-  initializeRangeAndDistance(graph, theta, gen);
+  else if (latticeType == "chain") {
+    int num_nodes = L;
+    BGLGraph graph(num_nodes);
+    for (int i = 0; i < L; ++i) {
+      graph.addNode(i, 0.0, NodeStatus::Active, i, 0);
+      if (i + 1 < L) {
+        graph.addEdge(i, i + 1, 0.0);
+      }
+    }
+    initializeRangeAndDistance(graph, delta, latticeType, distType, gen);
+    return graph;
+  }
+  else {
+    // Handle unknown graph type
+    throw std::invalid_argument("Unknown lattice type: " + latticeType);
+  }
 
-  return graph;
+}
+
+std::vector<double> generateSubsystemProbabilities(double pee, int num_subsystems) {
+  // Initialize the vector with default probabilities
+  std::vector<double> subsystem_probs(num_subsystems+1, 0.0);
+
+  // 0 is always rest of the system B
+  subsystem_probs[0] = 1 - pee;
+  // [1,num_subsystems] are the subsystems A1, A2, ... , AN
+  for (int i = 1; i <= num_subsystems; ++i) subsystem_probs[i] = pee / num_subsystems;
+
+  return subsystem_probs;
+}
+
+
+void initializeSubsystem(BGLGraph& graph, double pee, int num_subsystems, std::mt19937& gen) {
+
+  std::vector<double> subsystem_probs = generateSubsystemProbabilities(pee, num_subsystems);
+
+  // Create a distribution for subsystems based on the probabilities
+  std::discrete_distribution<> subsystem_distrib(subsystem_probs.begin(), subsystem_probs.end());
+
+  for (int i = 0; i < num_vertices(graph.getGraph()); ++i) {
+    // Assign random subsystem to the node based on the defined probabilities
+    int random_subsystem = subsystem_distrib(gen);
+    graph.updateNodeSubsystem(i, random_subsystem);
+  }
+}
+
+void initializeBipartiteChain(BGLGraph& graph) {
+  const auto totalVertices = num_vertices(graph.getGraph());
+
+  for (int i = 0; i < totalVertices; ++i) {
+    int subsystem = (i < totalVertices / 2) ? 0 : 1;
+    graph.updateNodeSubsystem(i, subsystem);
+  }
 }

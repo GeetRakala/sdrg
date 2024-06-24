@@ -6,27 +6,47 @@
 //=============================================================
 #pragma once
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/dynamic_bitset.hpp>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <string>
+#include <sstream>
 #include <random>
 #include <queue>
 #include <iostream>
 #include <fstream>
+#include <bitset>
+#include <set>
+#include <stdexcept>
 #include <algorithm>
+#include <execution>
+#include <mutex>
+#include <thread>
+#include <filesystem>
+#include <chrono>
+#include <iomanip>
+#include <unistd.h>
+
 
 struct ConfigParams {
   int seed = 0;
+  std::string graphType = "chain";
+  std::string distType = "box";
+  std::string partitionType = "bipartite";
   int latticeSize = 0;
-  double theta = 1.0;
+  double delta = 0.0;
   double temp = 0.0;
   int trials = 0;
+  int persTrials = 0;
   double pee = 0.0;
   int subsystems = 2;
+  int threads = 10;
   bool history = false;
   bool json = false;
   bool dumb = true;
+  bool verbose = false;
   bool debugMain = false;
   bool debugFlm = false;
   bool debugDijkstra = false;
@@ -143,11 +163,16 @@ class BGLGraph {
 void generateDataFile(const BGLGraph& bglGraph, const std::string& filename);
 void printGraphDetails(const BGLGraph& bglGraph, int L);
 bool parseConfig(const std::string& fileName, ConfigParams& params);
+std::string generateFilename();
+void logMetadata(const ConfigParams& params, const std::string& baseFilename, const std::string& directoryName);
 
 // functions defined in graph_init.cpp
 void initializeNodeStatus(BGLGraph& graph, std::mt19937& gen);
-void initializeRangeAndDistance(BGLGraph& graph, double theta, std::mt19937& gen);
-BGLGraph createSquareLatticeGraph(int L, double theta, std::mt19937& gen);
+void initializeRangeAndDistance(BGLGraph& graph, double delta, std::string& latticeType, std::string& distType, std::mt19937& gen);
+BGLGraph createLatticeGraph(int L, double delta, std::string& latticeType, std::string& distType, std::mt19937& gen);
+std::vector<double> generateSubsystemProbabilities(double p, int num_subsystems);
+void initializeSubsystem(BGLGraph& graph, double p, int num_subsystems, std::mt19937& gen);
+void initializeBipartiteChain(BGLGraph& graph);
 
 // functions defined in smart_search.cpp
 int chooseRandomActiveStartNode(const BGLGraph& graph, std::mt19937& gen);
@@ -160,17 +185,24 @@ void do_decimate(BGLGraph& bglGraph, const std::tuple<int, double, std::vector<i
 //functions defined in dumb_search.cpp
 std::tuple<int, double, std::vector<int>, bool> findMinimumEdgeOrNodeRange(const BGLGraph& bglGraph);
 
-
 //functions defined in dumb_decimate.cpp
 void do_dumb_decimate(BGLGraph& bglGraph, const std::tuple<int, double, std::vector<int>, bool>& localMinima);
 
 // functions defined in graph_debug.cpp
 void findAndPrintDuplicateEdges(const BGLGraph& graph);
 
-//functions defined in sample_utilities.cpp
-std::vector<double> generateSubsystemProbabilities(double p, int num_subsystems);
-void initializeSubsystem(BGLGraph& graph, double p, int num_subsystems, std::mt19937& gen);
-
-
 //functions defined in graph_sample.cpp
-std::unordered_map<std::string, int> calculateEntanglementEntropy( const BGLGraph& bglGraph, int num_subsystems);
+std::pair<int, std::unordered_map<int, int>> calculateClusterStatistics(const BGLGraph& bglGraph, int num_threads);
+std::unordered_map<std::string, int> calculateEntanglementCounts( const BGLGraph& bglGraph, int num_subsystems, int num_threads);
+int calculateVonNeumannEntropy(const std::unordered_map<std::string, int>& entanglementCounts, int subsystems);
+std::tuple<int, int> calculateMutualInfo(const std::unordered_map<std::string, int>& entanglementCounts, int subsystems);
+
+//functions defines in graph_persistence
+std::set<int> getUniqueClusters(const BGLGraph& bglGraph);
+int sampleNodes(const BGLGraph& bglGraph, std::mt19937& gen);
+double computeAverageSamples(const BGLGraph& bglGraph, int trials, std::mt19937& gen);
+
+//function defined in graph_persistence -- deprecated
+//int chooseRandomNode(const BGLGraph& bglGraph, std::mt19937& gen);
+//int getClusterByNode(const BGLGraph& bglGraph, int nodeIndex);
+//double averageSpinsForAllClusters(const BGLGraph& bglGraph, std::mt19937& gen);

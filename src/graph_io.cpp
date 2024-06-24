@@ -139,15 +139,21 @@ bool parseConfig(const std::string& fileName, ConfigParams& params) {
         std::string value;
         if (std::getline(is_line, value)) {
           if (key == "seed") params.seed = std::stoi(value);
+          else if (key == "graph_type") params.graphType = value;
+          else if (key == "partition_type") params.partitionType = value;
+          else if (key == "dist_type") params.distType = value;
           else if (key == "lattice_size") params.latticeSize = std::stoi(value);
-          else if (key == "theta") params.theta = std::stod(value);
+          else if (key == "delta") params.delta = std::stod(value);
           else if (key == "temp") params.temp = std::stod(value);
           else if (key == "trials") params.trials = std::stoi(value);
+          else if (key == "persistence_trials") params.persTrials = std::stoi(value);
           else if (key == "pee") params.pee = std::stod(value);
           else if (key == "subsystems") params.subsystems = std::stoi(value);
+          else if (key == "threads") params.threads = std::stoi(value);
           else if (key == "history") params.history = (value == "true");
           else if (key == "json") params.json = (value == "true");
           else if (key == "dumb") params.dumb = (value == "true");
+          else if (key == "verbose") params.verbose = (value == "true");
           else if (key == "debug_main") params.debugMain = (value == "true");
           else if (key == "debug_findLocalMinima") params.debugFlm = (value == "true");
           else if (key == "debug_dijkstra") params.debugDijkstra = (value == "true");
@@ -162,4 +168,41 @@ bool parseConfig(const std::string& fileName, ConfigParams& params) {
     }
   }
   return true;
+}
+
+// Function to generate filenames based on the configuration
+std::string generateFilename() {
+  // Get current time
+  auto now = std::chrono::system_clock::now();
+  auto now_as_time_t = std::chrono::system_clock::to_time_t(now);
+  //auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+
+  // Get process and thread ID
+  auto process_id = getpid();
+//  auto thread_id = std::this_thread::get_id();
+
+  std::stringstream filename;
+  //filename << std::put_time(std::localtime(&now_as_time_t), "run_%Y%m%d_%H%M%S_")
+  //  << std::setfill('0') << std::setw(3) << now_ms.count() << "_"
+  //  << process_id << "_"
+  //  << thread_id;
+  filename << std::put_time(std::localtime(&now_as_time_t), "run_%Y%m%d_%H%M%S_")
+    << process_id;
+  return filename.str();
+}
+
+// Function to write a single record to the metadata file
+void logMetadata(const ConfigParams& params, const std::string& baseFilename, const std::string& directoryName) {
+  std::string metadataFilename = directoryName + "/metadata.csv";
+  std::ofstream metadataFile(metadataFilename, std::ios::app); // Open in append mode
+
+  metadataFile << params.seed << ","
+    << params.graphType << ","
+    << params.latticeSize << ","
+    << params.delta << ","
+    << params.temp << ","
+    << params.trials << ","
+    << params.partitionType << ","
+    << params.subsystems << ","
+    << baseFilename << "\n";
 }
