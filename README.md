@@ -1,5 +1,5 @@
 # sdrg
-An efficient implementation of the Strong Disorder Renormalisation Group algorithm.
+An efficient implementation of the Strong Disorder Renormalisation Group algorithm to treat transverse field Ising models.
 Requires C++ Boost Graph Library.
 
 1. '/src' contains all the .cpp and .hpp files.
